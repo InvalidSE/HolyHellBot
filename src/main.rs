@@ -2,8 +2,7 @@
 // By InvalidSE
 // https://github.com/invalidse
 
-use std::{io, fmt::format};
-use std::str::FromStr;
+use std::{io};
 use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -106,6 +105,9 @@ fn get_user_games(username: String) -> Vec<Game> {
     // List of games
     let mut all_games: Vec<Game> = Vec::new();
 
+    // Print amount of archives found
+    println!("Found {} archives", archives.len());
+
     // For each archive, get the games
     for archive in archives {
         let archive_url = archive.as_str().unwrap();
@@ -121,8 +123,9 @@ fn get_user_games(username: String) -> Vec<Game> {
 fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
     let mut en_passant_possible = 0;
     let mut en_passant_played = 0;
+    println!("Found {} games", all_games.len());
     for game in all_games {
-        println!("Game: {} En Passants: {}/{}", game.url, en_passant_played, en_passant_possible);
+        // println!("Game: {} En Passants: {}/{}", game.url, en_passant_played, en_passant_possible);
 
         // Get the PGN
         if game.pgn.is_none(){continue;}
@@ -133,12 +136,15 @@ fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
         }
 
         // Check if the en passant was played by making a chess board and checking if the move is legal
-        println!("Initial Setup: {}", game.initial_setup.as_str());
+        // println!("Initial Setup: {}", game.initial_setup.as_str());
         // let mut board = chess::Board::from_str(game.initial_setup.as_str()).unwrap();
         let mut board = chess::Board::default();
 
         // This means we need to cut the PGN into moves and remove the excess
         if pgn.contains("[Variant "){continue;}
+
+        // If pgn does not have \n1. then the game was aborted
+        if !pgn.contains("\n1. "){continue;}
 
         // Split the PGN into moves
         let pgn = pgn.split("\n1. ").collect::<Vec<&str>>()[1];
@@ -159,7 +165,7 @@ fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
                 // Check last character was a 5
                 if n.chars().last().unwrap() == '5' {
                     // check the next move is a pawn taking on the same file but rank 6 (en passant, it will look like "exd6")
-                    if(moves.len() == move_num){continue;}
+                    if moves.len() == move_num {continue;}
                     if moves.clone()[move_num].replace("+", "").chars().count() == 4 {
                         if moves[move_num].replace("+", "").chars().skip(1).collect::<String>() == format!("x{}6", n.chars().next().unwrap()) {
                             // En passant taken by white, lets check if move_num is odd or even
@@ -174,7 +180,7 @@ fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
                                     en_passant_played += 1;
                                 }
                             }
-                            println!("In theory, en passant was taken in game {} by {}", game.url, if move_num % 2 == 0 {&game.white.username} else {&game.black.username});
+                            // println!("In theory, en passant was taken in game {} by {}", game.url, if move_num % 2 == 0 {&game.white.username} else {&game.black.username});
                             
                             // Add " e.p." to the move so that it doesn't crash
                             moves[move_num] = format!("{} e.p.", moves[move_num]);
@@ -184,7 +190,7 @@ fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
                 // Check last character was a 4
                 else if n.chars().last().unwrap() == '4' {
                     // check the next move is a pawn taking on the same file but rank 3 (en passant, it will look like "exd3")
-                    if(moves.len() == move_num){continue;}
+                    if moves.len() == move_num {continue;}
                     if moves.clone()[move_num].replace("+", "").chars().count() == 4 {
                         if moves[move_num].replace("+", "").chars().skip(1).collect::<String>() == format!("x{}3", n.chars().next().unwrap()) {
                             // En passant taken by white, lets check if move_num is odd or even
@@ -199,7 +205,7 @@ fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
                                     en_passant_played += 1;
                                 }
                             }
-                            println!("In theory, en passant was taken in game {} by {}", game.url, if move_num % 2 == 0 {&game.white.username} else {&game.black.username});
+                            // println!("In theory, en passant was taken in game {} by {}", game.url, if move_num % 2 == 0 {&game.white.username} else {&game.black.username});
                             
                             // Add " e.p." to the move so that it doesn't crash
                             moves[move_num] = format!("{} e.p.", moves[move_num]);
@@ -212,13 +218,13 @@ fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
         // Play the moves
         for m in moves {
             // Make a move
-            println!("Move: {}", m);
+            // println!("Move: {}", m);
             let mv = chess::ChessMove::from_san(&board, &m).expect("Invalid move");
             board = board.make_move_new(mv);
 
             // Check if en passant is possible
             if board.en_passant() == Some(mv.get_dest()){
-                println!("En passant possible");
+                // println!("En passant possible");
 
                 // Check who's move it is
                 if board.side_to_move() == chess::Color::White {
