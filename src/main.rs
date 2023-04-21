@@ -3,16 +3,18 @@
 // https://github.com/invalidse
 
 use std::io;
+use std::str::FromStr;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use chess;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Games {
     games: Vec<Game>
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct Game {
     url: String,
     pgn: Option<String>,
@@ -29,7 +31,7 @@ struct Game {
     black: Player
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct Player {
     rating: i32,
     result: String,
@@ -50,10 +52,19 @@ fn main() {
     // Get all user's games
     let all_games = get_user_games(username.clone());
 
-    let mut bongclouds = 0;
+    // Count the number of bongclouds
+    let bongclouds: i32 = count_bongclouds(all_games.clone(), username.clone());
+    println!("Bongclouds: {}", bongclouds);
 
+    // Count the number of times the user could have played en passant, and the number of times they did
+    let (en_passant_possible, en_passant_played) = count_en_passant(all_games, username);
+}
+
+fn count_bongclouds(all_games: Vec<Game>, username: String) -> i32 {
+    let mut bongclouds = 0;
     for game in all_games {
 
+        // Check if the game was a standard game
         if game.initial_setup != "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" {
             continue;
         }
@@ -64,21 +75,19 @@ fn main() {
 
         // Check if the bongcloud was played
         if pgn.contains(" 2. Ke2") {
-            println!("{} played the bongcloud in game {}", game.white.username, game.url);
+            // println!("{} played the bongcloud in game {}", game.white.username, game.url);
             if game.white.username.to_lowercase() == username.to_lowercase() {
                 bongclouds += 1;
             }
         }
         if pgn.contains(" 2... Ke7") {
-            println!("{} played the bongcloud in game {}", game.black.username, game.url);
+            // println!("{} played the bongcloud in game {}", game.black.username, game.url);
             if game.black.username.to_lowercase() == username.to_lowercase() {
                 bongclouds += 1;
             }
         }
     }
-
-    println!("Bongclouds: {}", bongclouds);
-
+    return bongclouds;
 }
 
 fn get_user_games(username: String) -> Vec<Game> {
@@ -109,4 +118,59 @@ fn get_user_games(username: String) -> Vec<Game> {
     return all_games;
 }
 
+fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
+    let mut en_passant_possible = 0;
+    let mut en_passant_played = 0;
+    for game in all_games {
+        println!("Game: {}", game.url);
 
+        // Get the PGN
+        if game.pgn.is_none(){continue;}
+        let pgn = game.pgn.unwrap();
+
+        // Check if the en passant was played by making a chess board and checking if the move is legal
+        // let board = chess::Board::from_str(game.fen.as_str()).unwrap();
+        let mut board = chess::Board::default();
+
+        // This means we need to cut the PGN into moves and remove the excess
+        if pgn.contains("[Variant "){continue;}
+
+        // Split the PGN into moves
+        let pgn = pgn.split("\n1. ").collect::<Vec<&str>>()[1];
+        let split_pgn = pgn.split_whitespace();
+
+        // Cut out every one that contains either a "." or a "{" or "}" or "1-0" or "0-1" or "1/2-1/2"
+        let moves = split_pgn.filter(|x: &&str| !x.contains(".") && !x.contains("{") && !x.contains("}") && !x.contains("1-0") && !x.contains("0-1") && !x.contains("1/2-1/2")).collect::<Vec<&str>>();
+
+        // remove any "=" from any of the moves
+        let moves = moves.iter().map(|x| x.replace("=", "")).collect::<Vec<String>>();
+        
+        // Play the moves
+        for m in moves {
+            // Make a move
+            println!("Move: {}", m);
+            let mv = chess::ChessMove::from_san(&board, &m).expect("Invalid move");
+            board = board.make_move_new(mv);
+
+            // Check if en passant is possible
+            if board.en_passant() == Some(mv.get_dest()){
+                println!("En passant possible");
+
+                // Check who's move it is
+                if board.side_to_move() == chess::Color::White {
+                    if game.white.username.to_lowercase() == username.to_lowercase() {
+                        en_passant_possible += 1;
+                    }
+                } else {
+                    if game.black.username.to_lowercase() == username.to_lowercase() {
+                        en_passant_possible += 1;
+                    }
+                }
+
+            }
+
+        }
+        
+    }
+    return (en_passant_possible, en_passant_played);
+}
