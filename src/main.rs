@@ -2,7 +2,7 @@
 // By InvalidSE
 // https://github.com/invalidse
 
-use std::io;
+use std::{io, fmt::format};
 use std::str::FromStr;
 use reqwest;
 use serde::{Deserialize, Serialize};
@@ -54,10 +54,10 @@ fn main() {
 
     // Count the number of bongclouds
     let bongclouds: i32 = count_bongclouds(all_games.clone(), username.clone());
-    println!("Bongclouds: {}", bongclouds);
 
     // Count the number of times the user could have played en passant, and the number of times they did
     let (en_passant_possible, en_passant_played) = count_en_passant(all_games, username);
+    println!("En Passants: {}/{}, Bongclouds: {}", en_passant_played, en_passant_possible, bongclouds);
 }
 
 fn count_bongclouds(all_games: Vec<Game>, username: String) -> i32 {
@@ -122,14 +122,19 @@ fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
     let mut en_passant_possible = 0;
     let mut en_passant_played = 0;
     for game in all_games {
-        println!("Game: {}", game.url);
+        println!("Game: {} En Passants: {}/{}", game.url, en_passant_played, en_passant_possible);
 
         // Get the PGN
         if game.pgn.is_none(){continue;}
         let pgn = game.pgn.unwrap();
 
+        if game.initial_setup != "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" {
+            continue;
+        }
+
         // Check if the en passant was played by making a chess board and checking if the move is legal
-        // let board = chess::Board::from_str(game.fen.as_str()).unwrap();
+        println!("Initial Setup: {}", game.initial_setup.as_str());
+        // let mut board = chess::Board::from_str(game.initial_setup.as_str()).unwrap();
         let mut board = chess::Board::default();
 
         // This means we need to cut the PGN into moves and remove the excess
@@ -139,11 +144,70 @@ fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
         let pgn = pgn.split("\n1. ").collect::<Vec<&str>>()[1];
         let split_pgn = pgn.split_whitespace();
 
-        // Cut out every one that contains either a "." or a "{" or "}" or "1-0" or "0-1" or "1/2-1/2"
+        // Cut out every one that contains either a "." or a "{" or "}" or "1-0" or "0-1" or "1/2-1/2", then remove the "=" from the moves
         let moves = split_pgn.filter(|x: &&str| !x.contains(".") && !x.contains("{") && !x.contains("}") && !x.contains("1-0") && !x.contains("0-1") && !x.contains("1/2-1/2")).collect::<Vec<&str>>();
-
-        // remove any "=" from any of the moves
         let moves = moves.iter().map(|x| x.replace("=", "")).collect::<Vec<String>>();
+        let mut moves = moves.iter().map(|x| x.replace("+", "")).collect::<Vec<String>>();
+
+        // Check for a pawn move to file 4 or 5
+        let mut move_num = 0;
+        for n in moves.clone() {
+            move_num += 1;
+            // replace any + in n with ""
+            let n = n.replace("+", "");
+            if n.len() == 2 {
+                // Check last character was a 5
+                if n.chars().last().unwrap() == '5' {
+                    // check the next move is a pawn taking on the same file but rank 6 (en passant, it will look like "exd6")
+                    if(moves.len() == move_num){continue;}
+                    if moves.clone()[move_num].replace("+", "").chars().count() == 4 {
+                        if moves[move_num].replace("+", "").chars().skip(1).collect::<String>() == format!("x{}6", n.chars().next().unwrap()) {
+                            // En passant taken by white, lets check if move_num is odd or even
+                            if move_num % 2 == 0 {
+                                // White took en passant
+                                if game.white.username.to_lowercase() == username.to_lowercase() {
+                                    en_passant_played += 1;
+                                }
+                            } else {
+                                // Black took en passant
+                                if game.black.username.to_lowercase() == username.to_lowercase() {
+                                    en_passant_played += 1;
+                                }
+                            }
+                            println!("In theory, en passant was taken in game {} by {}", game.url, if move_num % 2 == 0 {&game.white.username} else {&game.black.username});
+                            
+                            // Add " e.p." to the move so that it doesn't crash
+                            moves[move_num] = format!("{} e.p.", moves[move_num]);
+                        }
+                    }
+                }
+                // Check last character was a 4
+                else if n.chars().last().unwrap() == '4' {
+                    // check the next move is a pawn taking on the same file but rank 3 (en passant, it will look like "exd3")
+                    if(moves.len() == move_num){continue;}
+                    if moves.clone()[move_num].replace("+", "").chars().count() == 4 {
+                        if moves[move_num].replace("+", "").chars().skip(1).collect::<String>() == format!("x{}3", n.chars().next().unwrap()) {
+                            // En passant taken by white, lets check if move_num is odd or even
+                            if move_num % 2 == 0 {
+                                // White took en passant
+                                if game.white.username.to_lowercase() == username.to_lowercase() {
+                                    en_passant_played += 1;
+                                }
+                            } else {
+                                // Black took en passant
+                                if game.black.username.to_lowercase() == username.to_lowercase() {
+                                    en_passant_played += 1;
+                                }
+                            }
+                            println!("In theory, en passant was taken in game {} by {}", game.url, if move_num % 2 == 0 {&game.white.username} else {&game.black.username});
+                            
+                            // Add " e.p." to the move so that it doesn't crash
+                            moves[move_num] = format!("{} e.p.", moves[move_num]);
+                        }
+                    }
+                }
+            }
+        }
         
         // Play the moves
         for m in moves {
