@@ -114,8 +114,11 @@ fn get_user_games(username: String) -> Vec<Game> {
         let response = reqwest::blocking::get(archive_url).unwrap().text().unwrap();
         let games = serde_json::from_str::<Games>(&response).unwrap().games;
     
+        println!("Found {} games", &games.len());
+
         // Add games to list
         all_games.extend(games);
+        
     }
     return all_games;
 }
@@ -173,9 +176,8 @@ fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
                                 // White took en passant
                                 if game.white.username.to_lowercase() == username.to_lowercase() {
                                     en_passant_played += 1;
-                                }
+                                } 
                             }
-                            // println!("In theory, en passant was taken in game {} by {}", game.url, if move_num % 2 == 0 {&game.white.username} else {&game.black.username});
                             
                             // Add " e.p." to the move so that it doesn't crash
                             moves[move_num] = format!("{} e.p.", moves[move_num]);
@@ -193,9 +195,8 @@ fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
                                 // Black took en passant
                                 if game.black.username.to_lowercase() == username.to_lowercase() {
                                     en_passant_played += 1;
-                                }
-                            }
-                            // println!("In theory, en passant was taken in game {} by {}", game.url, if move_num % 2 == 0 {&game.white.username} else {&game.black.username});
+                                } 
+                            } 
                             
                             // Add " e.p." to the move so that it doesn't crash
                             moves[move_num] = format!("{} e.p.", moves[move_num]);
