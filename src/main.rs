@@ -166,17 +166,12 @@ fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
                 if n.chars().last().unwrap() == '5' {
                     // check the next move is a pawn taking on the same file but rank 6 (en passant, it will look like "exd6")
                     if moves.len() == move_num {continue;}
-                    if moves.clone()[move_num].replace("+", "").chars().count() == 4 {
-                        if moves[move_num].replace("+", "").chars().skip(1).collect::<String>() == format!("x{}6", n.chars().next().unwrap()) {
+                    if moves.clone()[move_num].replace("+", "").replace("#", "").chars().count() == 4 {
+                        if moves[move_num].replace("+", "").replace("#", "").chars().skip(1).collect::<String>() == format!("x{}6", n.chars().next().unwrap()) {
                             // En passant taken by white, lets check if move_num is odd or even
                             if move_num % 2 == 0 {
                                 // White took en passant
                                 if game.white.username.to_lowercase() == username.to_lowercase() {
-                                    en_passant_played += 1;
-                                }
-                            } else {
-                                // Black took en passant
-                                if game.black.username.to_lowercase() == username.to_lowercase() {
                                     en_passant_played += 1;
                                 }
                             }
@@ -191,15 +186,10 @@ fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
                 else if n.chars().last().unwrap() == '4' {
                     // check the next move is a pawn taking on the same file but rank 3 (en passant, it will look like "exd3")
                     if moves.len() == move_num {continue;}
-                    if moves.clone()[move_num].replace("+", "").chars().count() == 4 {
-                        if moves[move_num].replace("+", "").chars().skip(1).collect::<String>() == format!("x{}3", n.chars().next().unwrap()) {
+                    if moves.clone()[move_num].replace("+", "").replace("#", "").chars().count() == 4 {
+                        if moves[move_num].replace("+", "").replace("#", "").chars().skip(1).collect::<String>() == format!("x{}3", n.chars().next().unwrap()) {
                             // En passant taken by white, lets check if move_num is odd or even
-                            if move_num % 2 == 0 {
-                                // White took en passant
-                                if game.white.username.to_lowercase() == username.to_lowercase() {
-                                    en_passant_played += 1;
-                                }
-                            } else {
+                            if move_num % 2 != 0 {
                                 // Black took en passant
                                 if game.black.username.to_lowercase() == username.to_lowercase() {
                                     en_passant_played += 1;
@@ -224,16 +214,65 @@ fn count_en_passant(all_games: Vec<Game>, username: String) -> (i32, i32) {
 
             // Check if en passant is possible
             if board.en_passant() == Some(mv.get_dest()){
-                // println!("En passant possible");
-
-                // Check who's move it is
-                if board.side_to_move() == chess::Color::White {
-                    if game.white.username.to_lowercase() == username.to_lowercase() {
-                        en_passant_possible += 1;
+                
+                // Make a ChessMove for the en passant
+                if mv.get_dest().get_rank() == chess::Rank::Fifth{
+                    let en_passant_move = chess::ChessMove::new(mv.get_dest().uleft(), mv.get_dest().up().unwrap(), None);
+                    // Check if the move is legal
+                    if board.legal(en_passant_move) {
+                        // println!("En passant is possible in game {} by {}", game.url, if board.side_to_move() == chess::Color::White {&game.white.username} else {&game.black.username});
+                        if board.side_to_move() == chess::Color::White {
+                            if game.white.username.to_lowercase() == username.to_lowercase() {
+                                en_passant_possible += 1;
+                            }
+                        } else {
+                            if game.black.username.to_lowercase() == username.to_lowercase() {
+                                en_passant_possible += 1;
+                            }
+                        }
+                    } else {
+                        let en_passant_move = chess::ChessMove::new(mv.get_dest().uright(), mv.get_dest().up().unwrap(), None);
+                        if board.legal(en_passant_move) {
+                            // println!("En passant is possible in game {} by {}", game.url, if board.side_to_move() == chess::Color::White {&game.white.username} else {&game.black.username});
+                            if board.side_to_move() == chess::Color::White {
+                                if game.white.username.to_lowercase() == username.to_lowercase() {
+                                    en_passant_possible += 1;
+                                }
+                            } else {
+                                if game.black.username.to_lowercase() == username.to_lowercase() {
+                                    en_passant_possible += 1;
+                                }
+                            }
+                        }
                     }
-                } else {
-                    if game.black.username.to_lowercase() == username.to_lowercase() {
-                        en_passant_possible += 1;
+                } else if mv.get_dest().get_rank() == chess::Rank::Fourth{
+                    let en_passant_move = chess::ChessMove::new(mv.get_dest().uleft(), mv.get_dest().down().unwrap(), None);
+                    // Check if the move is legal
+                    if board.legal(en_passant_move) {
+                        // println!("En passant is possible in game {} by {}", game.url, if board.side_to_move() == chess::Color::White {&game.white.username} else {&game.black.username});
+                        if board.side_to_move() == chess::Color::White {
+                            if game.white.username.to_lowercase() == username.to_lowercase() {
+                                en_passant_possible += 1;
+                            }
+                        } else {
+                            if game.black.username.to_lowercase() == username.to_lowercase() {
+                                en_passant_possible += 1;
+                            }
+                        }
+                    } else {
+                        let en_passant_move = chess::ChessMove::new(mv.get_dest().uright(), mv.get_dest().down().unwrap(), None);
+                        if board.legal(en_passant_move) {
+                            // println!("En passant is possible in game {} by {}", game.url, if board.side_to_move() == chess::Color::White {&game.white.username} else {&game.black.username});
+                            if board.side_to_move() == chess::Color::White {
+                                if game.white.username.to_lowercase() == username.to_lowercase() {
+                                    en_passant_possible += 1;
+                                }
+                            } else {
+                                if game.black.username.to_lowercase() == username.to_lowercase() {
+                                    en_passant_possible += 1;
+                                }
+                            }
+                        }
                     }
                 }
 
